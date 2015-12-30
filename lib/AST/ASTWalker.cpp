@@ -451,6 +451,14 @@ class Traversal : public ASTVisitor<Traversal, Expr*, Stmt*,
     }
     return nullptr;
   }
+  
+  Expr *visitYieldExpr(YieldExpr *E) {
+    if (Expr *subExpr = doIt(E->getSubExpr())) {
+      E->setSubExpr(subExpr);
+      return E;
+    }
+    return nullptr;
+  }
 
   Expr *visitIdentityExpr(IdentityExpr *E) {
     if (Expr *subExpr = doIt(E->getSubExpr())) {
@@ -572,7 +580,7 @@ class Traversal : public ASTVisitor<Traversal, Expr*, Stmt*,
     }
     return nullptr;
   }
-
+  
   Expr *visitForceTryExpr(ForceTryExpr *E) {
     if (Expr *E2 = doIt(E->getSubExpr())) {
       E->setSubExpr(E2);
@@ -1011,6 +1019,7 @@ Stmt *Traversal::visitThrowStmt(ThrowStmt *TS) {
 
 Stmt *Traversal::visitBraceStmt(BraceStmt *BS) {
   for (auto &Elem : BS->getElements()) {
+
     if (Expr *SubExpr = Elem.dyn_cast<Expr*>()) {
       if (Expr *E2 = doIt(SubExpr))
         Elem = E2;

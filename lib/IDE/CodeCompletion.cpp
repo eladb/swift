@@ -4044,6 +4044,7 @@ static void addExprKeywords(CodeCompletionResultSink &Sink) {
   AddKeyword("try", StringRef(), CodeCompletionKeywordKind::kw_try);
   AddKeyword("try!", StringRef(), CodeCompletionKeywordKind::kw_try);
   AddKeyword("try?", StringRef(), CodeCompletionKeywordKind::kw_try);
+  AddKeyword("yield", StringRef(), CodeCompletionKeywordKind::kw_yield);
   // FIXME: The pedantically correct way to find the type is to resolve the
   // Swift.StringLiteralType type.
   AddKeyword("__FUNCTION__", "String", CodeCompletionKeywordKind::kw___FUNCTION__);

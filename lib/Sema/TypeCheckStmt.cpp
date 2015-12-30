@@ -41,6 +41,21 @@
 using namespace swift;
 
 namespace {
+  class SynthesizeYields : public ASTWalker {
+    DeclContext *ParentDC;
+  public:
+    SynthesizeYields(DeclContext *parent)
+      : ParentDC(parent) {}
+    
+    std::pair<bool, Expr *> walkToExprPre(Expr *E) override {
+      if (auto YE = dyn_cast<YieldExpr>(E)) {
+        ParentDC->getInnermostDeclarationDeclContext()->dump();
+        E->dump();
+      }
+      return { true, E };
+    }
+  };
+  
   class ContextualizeClosures : public ASTWalker {
     DeclContext *ParentDC;
   public:
@@ -86,8 +101,8 @@ namespace {
         CE->getBody()->walk(*this);
         ParentDC = oldParentDC;
         return { false, E };
-      } 
-
+      }
+      
       // Explicit closures start their own sequence.
       if (auto CE = dyn_cast<ClosureExpr>(E)) {
         // In the repl, the parent top-level context may have been re-written.
@@ -225,6 +240,102 @@ static void tryDiagnoseUnnecessaryCastOverOptionSet(ASTContext &Ctx,
     .fixItRemove(SourceRange(ME->getDotLoc(), E->getEndLoc()));
 }
 
+/// If 'yield' is used within a function, synthesize continuation-style
+/// returns for each yield.
+static void synthesizeYields(DeclContext *DC, BraceStmt *&funcBody) {
+#warning MARKER: This is where we synthesize yields
+  funcBody->walk(SynthesizeYields(DC));
+//
+//  
+//  // Synthesize yields
+//  auto elements = funcBody->getElements();
+//  for (auto i = 0; i < (int)elements.size(); ++i) {
+//    auto &elem = elements[i];
+//    if (Expr *expr = elem.dyn_cast<Expr*>()) {
+//      
+//      if (auto yield = dyn_cast<YieldExpr>(expr)) {
+//        auto yieldElementIndex = i;
+//        
+//        // Split brace elements to "before yield" and "after yield"
+//        auto newElements = SmallVector<ASTNode, 4>();
+//        auto continuationElements = SmallVector<ASTNode, 4>();
+//        for (auto j = 0; j < (int)elements.size(); j++) {
+//          if (j < yieldElementIndex) {
+//            newElements.push_back(elements[j]);
+//          }
+//          else if (j > yieldElementIndex) {
+//            continuationElements.push_back(elements[j]);
+//          }
+//          
+//          // The yield itself it omitted from the new brace
+//        }
+//        
+//        // Lookup yield generator function in standard library
+//        auto fooIdentifier = ctx.getIdentifier("foo");
+//        auto results = SmallVector<ValueDecl*, 1>();
+//        declContext->getParentModule()->lookupValue({ }, fooIdentifier, NLKind::UnqualifiedLookup, results);
+//        assert(results.size() == 1);
+//        auto valueDecl = results[0];
+//        auto yieldGeneratorDeclRefExpr = new (ctx) DeclRefExpr(valueDecl, expr->getLoc(), true);
+//        
+//        //  (return_expr
+//        //    (call_expr
+//        //      (declref_expr type='(val: Int?, next: (() -> ())?) -> ()' decl=<YieldGenerator>
+//        //      (tuple_expr implicit type='(val: Int?, next: (() -> ())?)' names=val,next
+//        //        <YieldedValue>
+//        //        (closure_expr implicit type='() -> ()' location=src:19:14 range=[src:19:14 - line:21:1] discriminator=1
+//        //          (brace_stmt
+//        //            <RestOfBrace>
+//        
+//        
+//        // Prepare the arguments for calling the yield generator
+//        // "val" argument is simply the yield sub expression
+//        // "next" is the continuation closure
+//        auto args = SmallVector<Expr*, 1>();
+//        auto labels = SmallVector<Identifier, 1>();
+//        auto labelLocs = SmallVector<SourceLoc, 1>();
+//        labels.push_back(ctx.getIdentifier("val"));
+//        labelLocs.push_back(SourceLoc());
+//        args.push_back(yield->getSubExpr());
+//        
+//        // If we have continuation elements, create the closure that contains the continuation
+//        if (continuationElements.size() > 0) {
+//          SmallVector<TuplePatternElt, 0> pattern;
+//          auto continuationClosureParams = TuplePattern::createSimple(ctx, SourceLoc(), pattern, SourceLoc(), /*implicit*/true);
+//          auto continuationClosure = new (ctx) ClosureExpr(continuationClosureParams, SourceLoc(), SourceLoc(), SourceLoc(), TypeLoc(), /*discriminator*/ 1, declContext);
+//          auto continuationBrace = BraceStmt::create(ctx, yield->getEndLoc(), continuationElements, funcBody->getRBraceLoc());
+//          continuationClosure->setImplicit();
+//          continuationClosure->setBody(continuationBrace, false);
+//          
+//          // Add closure to 'call' arguments
+//          labels.push_back(ctx.getIdentifier("next"));
+//          labelLocs.push_back(SourceLoc());
+//          args.push_back(continuationClosure);
+//        }
+//        
+//        auto callYieldArgExpr = TupleExpr::create(ctx, SourceLoc(), args, labels, labelLocs, SourceLoc(), false, true);
+//        
+//        // Create the call expression
+//        auto callYieldGeneratorExpr = new (ctx) CallExpr(yieldGeneratorDeclRefExpr, callYieldArgExpr, true);
+//        
+//        // Synthesize a return statement and add to brace
+//        auto returnStatement = new (ctx) ReturnStmt(yield->getLoc(), callYieldGeneratorExpr, /*isImplicit*/ true);
+//        newElements.push_back(returnStatement);
+//        
+//        // Synthesize a replacement brace
+//        auto synthesizedBrace = BraceStmt::create(ctx, funcBody->getLBraceLoc(), newElements, funcBody->getRBraceLoc());
+//        //        synthesizedBrace->dump();
+//        //        typeCheckStmt(synthesizedBrace);
+//        //        synthesizedBrace->dump();
+//       
+//        funcBody = synthesizedBrace;
+//        return;
+//      }
+//    }
+//  }
+}
+
+
 namespace {
 class StmtChecker : public StmtVisitor<StmtChecker, Stmt*> {
 public:
@@ -331,6 +442,7 @@ public:
 
   /// Type-check an entire function body.
   bool typeCheckBody(BraceStmt *&S) {
+    synthesizeYields(DC, S);
     if (typeCheckStmt(S)) return true;
     setAutoClosureDiscriminators(DC, S);
     return false;
@@ -1058,6 +1170,7 @@ void TypeChecker::checkIgnoredExpr(Expr *E) {
 
 Stmt *StmtChecker::visitBraceStmt(BraceStmt *BS) {
   const SourceManager &SM = TC.Context.SourceMgr;
+  
   for (auto &elem : BS->getElements()) {
     if (Expr *SubExpr = elem.dyn_cast<Expr*>()) {
       SourceLoc Loc = SubExpr->getStartLoc();
@@ -1459,3 +1572,4 @@ void TypeChecker::typeCheckTopLevelCodeDecl(TopLevelCodeDecl *TLCD) {
   TLCD->setBody(Body);
   checkTopLevelErrorHandling(TLCD);
 }
+

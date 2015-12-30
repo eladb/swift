@@ -1491,6 +1491,11 @@ namespace {
       return optTy;
     }
 
+    virtual Type visitYieldExpr(YieldExpr *expr) {
+      expr->setType(expr->getSubExpr()->getType());
+      return expr->getType();
+    }
+    
     virtual Type visitParenExpr(ParenExpr *expr) {
       auto &ctx = CS.getASTContext();
       expr->setType(ParenType::get(ctx, expr->getSubExpr()->getType()));

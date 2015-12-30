@@ -2466,9 +2466,42 @@ namespace {
       expr->setType(expr->getSubExpr()->getType());
       return expr;
     }
-
+    
     Expr *visitOptionalTryExpr(OptionalTryExpr *expr) {
       return simplifyExprType(expr);
+    }
+
+    Expr *visitYieldExpr(YieldExpr *expr) {
+      return nullptr;
+//      auto &Ctx = cs.getASTContext();
+//      return expr->getSubExpr();
+//      auto returnStmt = new (Ctx) ReturnStmt(SourceLoc(), expr->getSubExpr());
+//      return returnStmt
+//      auto &Ctx = cs.getASTContext();
+//      auto UDE = new (Ctx) UnresolvedDotExpr(expr, expr->getYieldLoc(), Ctx.getIdentifier("copyWithZone"), expr->getYieldLoc(), /*implicit*/true);
+//      auto Nil = new (Ctx) NilLiteralExpr(SourceLoc(), /*implicit*/true);
+//      auto Args = new (Ctx) ParenExpr(SourceLoc(), Nil, SourceLoc(), false);
+//      auto Call = new (Ctx) CallExpr(UDE, Args, /*implicit*/true);
+//      expr->setSubExpr(Call);
+//      expr->setType(Call->getType());
+//      return expr;
+      
+//      auto UDE = new (Ctx) UnresolvedDotExpr(Val, SourceLoc(),
+//                                             Ctx.getIdentifier("copyWithZone"),
+//                                             SourceLoc(), /*implicit*/true);
+//      Expr *Nil = new (Ctx) NilLiteralExpr(SourceLoc(), /*implicit*/true);
+//      Nil = new (Ctx) ParenExpr(SourceLoc(), Nil, SourceLoc(), false);
+//      
+//      //- (id)copyWithZone:(NSZone *)zone;
+//      Expr *Call = new (Ctx) CallExpr(UDE, Nil, /*implicit*/true);
+//      
+      
+//      FuncDecl::create(
+//                       TC.Context, /*StaticLoc=*/SourceLoc(), StaticSpellingKind::None, loc,
+//                       Identifier(), loc, SourceLoc(), SourceLoc(), /*generic=*/nullptr, Type(),
+//                       params, TypeLoc::withoutLoc(setterRetTy), storage->getDeclContext())
+      
+//      expr->setType(expr->getSubExpr()->getType());
     }
 
     Expr *visitParenExpr(ParenExpr *expr) {
@@ -3479,6 +3512,8 @@ static Expr *lookThroughIdentityExprs(Expr *expr) {
       if (isa<OptionalTryExpr>(anyTry))
         return expr;
       expr = anyTry->getSubExpr();
+    } else if (auto yield = dyn_cast<YieldExpr>(expr)) {
+      expr = yield->getSubExpr();
     } else {
       return expr;
     }
@@ -3505,6 +3540,12 @@ static Type rebuildIdentityExprs(ASTContext &ctx, Expr *expr, Type type) {
     if (isa<OptionalTryExpr>(ident))
       return type;
 
+    type = rebuildIdentityExprs(ctx, ident->getSubExpr(), type);
+    ident->setType(type);
+    return ident->getType();
+  }
+  
+  if (auto ident = dyn_cast<YieldExpr>(expr)) {
     type = rebuildIdentityExprs(ctx, ident->getSubExpr(), type);
     ident->setType(type);
     return ident->getType();

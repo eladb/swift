@@ -145,7 +145,7 @@ namespace {
 
     RValue visitForceTryExpr(ForceTryExpr *E, SGFContext C);
     RValue visitOptionalTryExpr(OptionalTryExpr *E, SGFContext C);
-
+    RValue visitYieldExpr(YieldExpr *E, SGFContext C);
     RValue visitNilLiteralExpr(NilLiteralExpr *E, SGFContext C);
     RValue visitIntegerLiteralExpr(IntegerLiteralExpr *E, SGFContext C);
     RValue visitFloatLiteralExpr(FloatLiteralExpr *E, SGFContext C);
@@ -880,6 +880,33 @@ manageBufferForExprResult(SILValue buffer, const TypeLowering &bufferTL,
     return ManagedValue::forUnmanaged(buffer);
 
   return ManagedValue(buffer, enterDestroyCleanup(buffer));
+}
+
+RValue RValueEmitter::visitYieldExpr(YieldExpr *E, SGFContext C) {
+  // Create catch block (with an Exception argument)
+  SILBasicBlock *catchBB = SGF.createBasicBlock(FunctionSection::Postmatter);
+  catchBB->createBBArg(SILType::getExceptionType(SGF.getASTContext()));
+  
+  // Create continuation block (no args)
+  SILBasicBlock *contBB = SGF.createBasicBlock();
+
+  // ------------ EMITTING -------------------------------
+  
+  // Emit sub-expression with `catchBB` as the error block and `contBB` as the continuation block
+  FullExpr localCleanups(SGF.Cleanups, E);
+  llvm::SaveAndRestore<JumpDest> throwDest { SGF.ThrowDest, JumpDest(catchBB, SGF.Cleanups.getCleanupsDepth(), E) };
+  RValue result = visit(E->getSubExpr(), C);
+  localCleanups.pop();
+  SGF.B.createBranch(E, contBB); // this sets the success block
+  
+  // Emit the catch block
+  SGF.B.emitBlock(catchBB);
+  SGF.B.createBranch(E, contBB); // jump to continuation block
+  
+  // Emit the continuation block.
+  SGF.B.emitBlock(contBB);
+  
+  return RValue();
 }
 
 RValue RValueEmitter::visitForceTryExpr(ForceTryExpr *E, SGFContext C) {

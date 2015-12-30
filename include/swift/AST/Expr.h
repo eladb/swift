@@ -1422,6 +1422,29 @@ public:
     return E->getKind() == ExprKind::UnresolvedMember;
   }
 };
+  
+/// YieldExpr - A 'yield' surrounding an expression
+class YieldExpr : public Expr {
+  Expr *SubExpr;
+  SourceLoc YieldLoc;
+
+public:
+  YieldExpr(SourceLoc yieldLoc, Expr *sub, Type type = Type(), bool implicit = false)
+    : Expr(ExprKind::Yield, implicit, type), SubExpr(sub), YieldLoc(yieldLoc) {}
+  
+  SourceLoc getLoc() const { return SubExpr->getLoc(); }
+  Expr *getSubExpr() const { return SubExpr; }
+  void setSubExpr(Expr *E) { SubExpr = E; }
+  
+  SourceLoc getYieldLoc() const { return YieldLoc; }
+  
+  SourceLoc getStartLoc() const { return YieldLoc; }
+  SourceLoc getEndLoc() const { return getSubExpr()->getEndLoc(); }
+  
+  static bool classof(const Expr *e) {
+    return e->getKind() == ExprKind::Yield;
+  }
+};
 
 /// AnyTryExpr - An abstract superclass for 'try' and 'try!'.
 ///

@@ -7242,3 +7242,4 @@ void TypeChecker::fixAbstractFunctionNames(InFlightDiagnostic &diag,
   
   // FIXME: Update the AST accordingly.
 }
+

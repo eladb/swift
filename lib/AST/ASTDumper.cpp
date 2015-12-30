@@ -1858,6 +1858,13 @@ public:
     printRec(E->getSubExpr());
     OS << ')';
   }
+  
+  void visitYieldExpr(YieldExpr *E) {
+    printCommon(E, "yield_expr");
+    OS << '\n';
+    printRec(E->getSubExpr());
+    OS << ')';
+  }
 
   void visitSequenceExpr(SequenceExpr *E) {
     printCommon(E, "sequence_expr");

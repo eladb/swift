@@ -2324,3 +2324,4 @@ void TypeChecker::addImplicitDestructor(ClassDecl *CD) {
   CD->addMember(DD);
   CD->setHasDestructor();
 }
+

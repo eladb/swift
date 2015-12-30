@@ -373,12 +373,26 @@ done:
 ///     'try' expr-unary(Mode)
 ///     'try' '?' expr-unary(Mode)
 ///     'try' '!' expr-unary(Mode)
+///     'yield' expr
 ///     expr-unary(Mode)
 ///
 /// 'try' is not actually allowed at an arbitrary position of a
 /// sequence, but this isn't enforced until sequence-folding.
 ParserResult<Expr> Parser::parseExprSequenceElement(Diag<> message,
                                                     bool isExprBasic) {
+
+  // 'yield' eagerly consumes the subsequent expression
+  SourceLoc yieldLoc;
+  if (consumeIf(tok::kw_yield, yieldLoc)) {
+    auto sub = parseExpr(message);
+    
+    if (!sub.hasCodeCompletion() && !sub.isNull()) {
+      sub = makeParserResult(new (Context) YieldExpr(yieldLoc, sub.get()));
+    }
+    
+    return sub;
+  }
+  
   SourceLoc tryLoc;
   bool hadTry = consumeIf(tok::kw_try, tryLoc);
   Optional<Token> trySuffix;
@@ -386,7 +400,7 @@ ParserResult<Expr> Parser::parseExprSequenceElement(Diag<> message,
     trySuffix = Tok;
     consumeToken();
   }
-
+  
   ParserResult<Expr> sub = parseExprUnary(message, isExprBasic);
 
   if (hadTry && !sub.hasCodeCompletion() && !sub.isNull()) {
@@ -405,7 +419,7 @@ ParserResult<Expr> Parser::parseExprSequenceElement(Diag<> message,
       break;
     }
   }
-
+    
   return sub;
 }
 
@@ -1802,7 +1816,7 @@ ParserResult<Expr> Parser::parseExprClosure() {
   // reset our state to not be in a pattern for any recursive pattern parses.
   llvm::SaveAndRestore<decltype(InVarOrLetPattern)>
   T(InVarOrLetPattern, IVOLP_NotInVarOrLet);
-  
+    
   // Parse the opening left brace.
   SourceLoc leftBrace = consumeToken();
 

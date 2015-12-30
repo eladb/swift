@@ -387,6 +387,11 @@ ResolvedLocator constraints::resolveLocatorToDecl(
       continue;
     }
 
+    if (auto yield = dyn_cast<YieldExpr>(anchor)) {
+      anchor = yield->getSubExpr();
+      continue;
+    }
+    
     if (auto selfApply = dyn_cast<SelfApplyExpr>(anchor)) {
       anchor = selfApply->getFn();
       continue;
@@ -2426,7 +2431,8 @@ bool FailureDiagnosis::diagnoseGeneralOverloadFailure(Constraint *constraint) {
   // and the apply.
   while (call &&
          (isa<IdentityExpr>(call) ||
-          isa<TryExpr>(call) || isa<ForceTryExpr>(call))) {
+          isa<TryExpr>(call) || isa<ForceTryExpr>(call) ||
+          isa<YieldExpr>(call))) {
     call = expr->getParentMap()[call];
   }
   

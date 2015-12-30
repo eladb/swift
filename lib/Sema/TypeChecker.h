@@ -1750,6 +1750,9 @@ public:
 
   /// Check for needless words in the member reference.
   void checkOmitNeedlessWords(MemberRefExpr *memberRef);
+  
+  /// Rewrite function body for generator functions (functions with 'yield')
+  void checkGeneratorFunc(BraceStmt *funcBody);
 };
 
 /// \brief RAII object that cleans up the given expression if not explicitly

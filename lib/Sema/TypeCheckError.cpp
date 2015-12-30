@@ -201,6 +201,8 @@ public:
       recurse = asImpl().checkForceTry(forceTryExpr);
     } else if (auto optionalTryExpr = dyn_cast<OptionalTryExpr>(E)) {
       recurse = asImpl().checkOptionalTry(optionalTryExpr);
+    } else if (auto yieldExpr = dyn_cast<YieldExpr>(E)) {
+      recurse = asImpl().checkYield(yieldExpr);
     } else if (auto apply = dyn_cast<ApplyExpr>(E)) {
       recurse = asImpl().checkApply(apply);
     }
@@ -556,6 +558,9 @@ private:
       return ShouldNotRecurse;
     }
     ShouldRecurse_t checkTry(TryExpr *E) {
+      return ShouldRecurse;
+    }
+    ShouldRecurse_t checkYield(YieldExpr *E) {
       return ShouldRecurse;
     }
     ShouldRecurse_t checkForceTry(ForceTryExpr *E) {
@@ -1373,6 +1378,17 @@ private:
     llvm_unreachable("bad throwing kind");
   }
 
+  ShouldRecurse_t checkYield(YieldExpr *E) {
+    // Walk the operand.
+    ContextScope scope(*this, None);
+    scope.enterTry();
+    
+    E->getSubExpr()->walk(*this);
+    
+    scope.preserveCoverageFromTryOperand();
+    return ShouldNotRecurse;
+  }
+  
   ShouldRecurse_t checkTry(TryExpr *E) {
     // Walk the operand.
     ContextScope scope(*this, None);

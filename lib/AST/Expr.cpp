@@ -177,6 +177,9 @@ Expr *Expr::getValueProvidingExpr() {
   if (auto TE = dyn_cast<ForceTryExpr>(this))
     return TE->getSubExpr()->getValueProvidingExpr();
 
+  if (YieldExpr *YE = dyn_cast<YieldExpr>(this))
+    return YE->getSubExpr()->getSemanticsProvidingExpr();
+  
   // TODO:
   //   - tuple literal projection, which may become interestingly idiomatic
 
@@ -262,6 +265,10 @@ void Expr::propagateLValueAccessKind(AccessKind accessKind,
       for (auto elt : E->getElements()) {
         visit(elt, accessKind);
       }
+    }
+         
+    void visitYieldExpr(YieldExpr *E, AccessKind accessKind) {
+      visit(E->getSubExpr(), accessKind);
     }
 
     void visitOpenExistentialExpr(OpenExistentialExpr *E,
@@ -552,6 +559,7 @@ bool Expr::canAppendCallParentheses() const {
   case ExprKind::ForceTry:
   case ExprKind::OptionalTry:
   case ExprKind::InOut:
+  case ExprKind::Yield:
     return false;
 
   case ExprKind::RebindSelfInConstructor:
@@ -1039,6 +1047,12 @@ RebindSelfInConstructorExpr::getCalledConstructor(bool &isChainToSuper) const {
     // Look through all try expressions.
     if (auto tryExpr = dyn_cast<AnyTryExpr>(candidate)) {
       candidate = tryExpr->getSubExpr();
+      continue;
+    }
+    
+    // Look through all yield expressions.
+    if (auto yieldExpr = dyn_cast<YieldExpr>(candidate)) {
+      candidate = yieldExpr->getSubExpr();
       continue;
     }
 

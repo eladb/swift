@@ -57,7 +57,15 @@ bool Parser::isStartOfStmt() {
     consumeToken(tok::kw_try);
     return isStartOfStmt();
   }
-      
+
+  case tok::kw_yield: {
+    // "yield" cannot actually start any statements, but we parse it there for
+    // better recovery.
+    Parser::BacktrackingScope backtrack(*this);
+    consumeToken(tok::kw_yield);
+    return isStartOfStmt();
+  }
+
   case tok::identifier: {
     // "identifier ':' for/while/do/switch" is a label on a loop/switch.
     if (!peekToken().is(tok::colon)) return false;
